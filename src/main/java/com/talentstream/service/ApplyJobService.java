@@ -1,5 +1,6 @@
 package com.talentstream.service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Arrays;
@@ -8,10 +9,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import com.talentstream.entity.Applicant;
 import com.talentstream.entity.ApplicantJobInterviewDTO;
+import com.talentstream.entity.ApplicantStatusHistory;
 import com.talentstream.entity.AppliedApplicantInfo;
 import com.talentstream.entity.AppliedApplicantInfoDTO;
 import com.talentstream.entity.ApplyJob;
 import com.talentstream.entity.Job;
+import com.talentstream.repository.ApplicantStatusHistoryRepository;
 import com.talentstream.repository.ApplyJobRepository;
 import com.talentstream.repository.JobRepository;
 import com.talentstream.repository.RegisterRepository;
@@ -32,6 +35,9 @@ public class ApplyJobService {
 	    
 	    @Autowired
 	    private RegisterRepository applicantRepository;
+	    
+	    @Autowired
+		private ApplicantStatusHistoryRepository statusHistoryRepository;
  
 	    public String ApplicantApplyJob(long  applicantId, long jobId) {
 	    	
@@ -51,7 +57,7 @@ public class ApplyJobService {
 	            applyJob.setApplicant(applicant);
 	            applyJob.setJob(job);
 	            applyJobRepository.save(applyJob);
-
+	            saveStatusHistory(applyJob, applyJob.getApplicantStatus());
 	            return "Job Applied Successfully";
 	        } catch (CustomException ex) {
 	            throw ex; 
@@ -59,6 +65,15 @@ public class ApplyJobService {
 	            throw new CustomException("An error occurred while applying for the job", HttpStatus.INTERNAL_SERVER_ERROR);
 	        }
 	    }
+	    
+	    private void saveStatusHistory(ApplyJob applyJob, String applicationStatus) {
+			// TODO Auto-generated method stub
+			ApplicantStatusHistory statusHistory=new ApplicantStatusHistory();
+			statusHistory.setApplyJob(applyJob);
+			statusHistory.setStatus(applicationStatus);
+			statusHistory.setChangeDate(LocalDateTime.now());
+			statusHistoryRepository.save(statusHistory);
+		}
 	    
 	    public List<ApplyJob> getAppliedApplicantsForJob(Long jobId) {
 	    	 try {
@@ -124,7 +139,7 @@ public String updateApplicantStatus(Long applyJobId, String newStatus) {
  
     applyJob.setApplicantStatus(newStatus);
     applyJobRepository.save(applyJob);
- 
+    saveStatusHistory(applyJob, applyJob.getApplicantStatus());
     return "Applicant status updated to: " + newStatus;
 }
  
@@ -160,6 +175,11 @@ public long countShortlistedAndInterviewedApplicants() {
     } catch (Exception e) {
         throw new CustomException("Failed to count shortlisted and interviewed applicants", HttpStatus.INTERNAL_SERVER_ERROR);
     }
+}
+
+public List<ApplicantStatusHistory> getApplicantStatusHistory(long applyJobId) {
+	// TODO Auto-generated method stub
+	return statusHistoryRepository.findByApplyJob_ApplyJobIdOrderByChangeDateDesc(applyJobId);
 }
 }
 

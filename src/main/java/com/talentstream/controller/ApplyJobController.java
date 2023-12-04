@@ -18,12 +18,16 @@ import org.springframework.web.bind.annotation.RestController;
 import com.talentstream.dto.JobDTO;
 import com.talentstream.dto.ScheduleInterviewDTO;
 import com.talentstream.entity.ApplicantJobInterviewDTO;
+import com.talentstream.entity.ApplicantStatusHistory;
 import com.talentstream.entity.AppliedApplicantInfoDTO;
 import com.talentstream.entity.ApplyJob;
 import com.talentstream.entity.Job;
 import com.talentstream.entity.ScheduleInterview;
 import com.talentstream.service.ApplyJobService;
 import com.talentstream.service.ScheduleInterviewService;
+
+import jakarta.persistence.EntityNotFoundException;
+
 import com.talentstream.exception.CustomException;
 @RestController       
 @RequestMapping("/applyjob")
@@ -219,6 +223,21 @@ public class ApplyJobController {
            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ArrayList<>());
        }
    }
+   
+   @GetMapping("/recruiters/applyjob-status-history/{applyJobId}")
+	public ResponseEntity<List<ApplicantStatusHistory>> getApplicantStatusHistory(@PathVariable long applyJobId){
+		try {
+			List<ApplicantStatusHistory> statusHistory=applyJobService.getApplicantStatusHistory(applyJobId);
+			return ResponseEntity.ok(statusHistory);
+		} catch (EntityNotFoundException e) {
+			// TODO: handle exception
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+		}catch (Exception e) {
+			// TODO: handle exception
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+		}
+		
+	}
  }
 
 
