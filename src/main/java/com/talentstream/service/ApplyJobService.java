@@ -64,6 +64,11 @@ public class ApplyJobService {
 	    	            applyJob.setApplicant(applicant);
 	    	            applyJob.setJob(job);
 	    	            applyJobRepository.save(applyJob);
+	    	            
+	    	            // Increment alert count
+	    		        incrementAlertCount(applyJob.getApplicant());
+	    		        
+	    		        //SaveStatusHistory
 	    	            saveStatusHistory(applyJob, applyJob.getApplicantStatus());
 	    	            Job jobs=applyJob.getJob();
 	    	            if(jobs!=null) {
@@ -72,6 +77,7 @@ public class ApplyJobService {
 	    	            		String companyName=recruiter.getCompanyname();
 	    	            		if(companyName!=null) {
 	    	            			String cN=recruiter.getCompanyname();
+	    	            			//SendAlerts
 	    	            			sendAlerts(applyJob,applyJob.getApplicantStatus(),cN);
 	    	            			return "Job applied successfully";
 	    	            		}
@@ -86,8 +92,18 @@ public class ApplyJobService {
 	             }
 	      }
 	            
-	    
-	    private void sendAlerts(ApplyJob applyJob, String applicantStatus, String cN) {
+	    //This method is to increment count of alerts whenever recruiter updating the status
+	    private void incrementAlertCount(Applicant applicant) {
+			// TODO Auto-generated method stub
+	    	if (applicant != null) {
+	            int currentAlertCount = applicant.getAlertCount();
+	            applicant.setAlertCount(currentAlertCount + 1);
+	            applicantRepository.save(applicant);
+	        }
+		}
+
+	    //This method is to display alerts whenever we click on Alerts
+		private void sendAlerts(ApplyJob applyJob, String applicantStatus, String cN) {
 			// TODO Auto-generated method stub
 	    	Alerts alerts=new Alerts();
 			alerts.setApplyJob(applyJob);
@@ -97,6 +113,7 @@ public class ApplyJobService {
 			alertsRepository.save(alerts);
 		}
 
+		//This method is to save the track of statuses that updated by recruiter
 		private void saveStatusHistory(ApplyJob applyJob, String applicationStatus) {
 			// TODO Auto-generated method stub
 			ApplicantStatusHistory statusHistory=new ApplicantStatusHistory();
@@ -175,7 +192,11 @@ public String updateApplicantStatus(Long applyJobId, String newStatus) {
     		if(companyName!=null) {
     			applyJob.setApplicantStatus(newStatus);
     		    applyJobRepository.save(applyJob);
+    		    //Increment alert count
+    			incrementAlertCount(applyJob.getApplicant());
+    			// Save status history
     		    saveStatusHistory(applyJob, applyJob.getApplicantStatus());
+    		    //Send alerts
     		    sendAlerts(applyJob,applyJob.getApplicantStatus(),companyName);
     		    return "Applicant status updated to: " + newStatus;
     		}
@@ -218,14 +239,31 @@ public long countShortlistedAndInterviewedApplicants() {
     }
 }
 
+//This method is to get list of statuses related to particular job
 public List<ApplicantStatusHistory> getApplicantStatusHistory(long applyJobId) {
 	// TODO Auto-generated method stub
 	return statusHistoryRepository.findByApplyJob_ApplyJobIdOrderByChangeDateDesc(applyJobId);
 }
 
+//This method is to get alerts sent by recruiter
 public List<Alerts> getAlerts(long applyJobId) {
 	// TODO Auto-generated method stub
 	return alertsRepository.findByApplyJob_ApplyJobIdOrderByChangeDateDesc(applyJobId);
+}
+
+//This method is to reset count of alerts to zero once after reading all the alert messages.
+public void resetAlertCount(long applyJobId) {
+	// TODO Auto-generated method stub
+	try {
+        ApplyJob applyJob = applyJobRepository.findById(applyJobId)
+                .orElseThrow(() -> new EntityNotFoundException("Apply job not found"));
+
+        applyJob.getApplicant().setAlertCount(0);
+        applyJobRepository.save(applyJob);
+    } catch (Exception e) {
+        // Handle exceptions, log, and consider appropriate error handling
+    	e.printStackTrace();
+    }
 }
 }
 
