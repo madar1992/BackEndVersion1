@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Arrays;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 import com.talentstream.entity.Alerts;
@@ -45,6 +47,8 @@ public class ApplyJobService {
 		private ApplicantStatusHistoryRepository statusHistoryRepository;
 	    @Autowired
 	    private AlertsRepository alertsRepository;
+	    @Autowired
+	    private JavaMailSender javaMailSender;
  
 	    public String ApplicantApplyJob(long  applicantId, long jobId) {
 	    	
@@ -111,6 +115,34 @@ public class ApplyJobService {
 			alerts.setStatus(applicantStatus);
 			alerts.setChangeDate(LocalDate.now());
 			alertsRepository.save(alerts);
+			// Send email to the applicant
+	        sendEmailToApplicant(applyJob.getApplicant().getEmail(), cN, applicantStatus);
+		}
+		
+		//This method is to send interview status to the applicant mail id
+		private void sendEmailToApplicant(String toEmail, String cN, String applicantStatus) {
+			// TODO Auto-generated method stub
+			try {
+				SimpleMailMessage message=new SimpleMailMessage();
+				// Set email properties
+				message.setTo(toEmail);
+				message.setSubject("Job Alert Notification");
+				// Customize your email content
+	            String content = "Dear Applicant,\n\n"
+	                    + "Your job application status has been updated to: " + applicantStatus + "\n"
+	                    + "Company: " + cN + "\n\n"
+	                    + "Thank you.\n\n"
+	                    + "Best regards,\n"
+	                    + "Your Company Name";
+
+	            message.setText(content);
+	            
+	            // Send the email
+	            javaMailSender.send(message);
+	        } catch (Exception e) {
+	            // Handle exceptions, log, and consider appropriate error handling
+	        	e.printStackTrace();
+	        }
 		}
 
 		//This method is to save the track of statuses that updated by recruiter
