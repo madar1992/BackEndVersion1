@@ -24,25 +24,13 @@ public class CompanyProfileService {
         this.companyProfileRepository = companyProfileRepository;
     }
 
-    public String saveCompanyProfile(CompanyProfileDTO companyProfileDTO, Long jobRecruiterId) throws Exception {
+    public CompanyProfile saveCompanyProfile(CompanyProfileDTO companyProfileDTO, Long jobRecruiterId) throws Exception {
     	   	 JobRecruiter jobRecruiter = jobRecruiterRepository.findByRecruiterId( jobRecruiterId);
-    	  	List<CompanyProfile> companyProfiles=companyProfileRepository.findByJobRecruiter(jobRecruiter);
-    	   	
-    	   	
-    	   	
     	   	 if (jobRecruiter != null) {
     	            // Convert DTO to Entity before saving
-    	   	
     	            CompanyProfile companyProfile = convertDTOToEntity(companyProfileDTO);
     	            companyProfile.setJobRecruiter(jobRecruiter);
-    	            
-    	            if(companyProfiles == null) {
-    	            	return "Profile saved successfully";
-    	            }else {
-    	            	return "CompanyProfile was already updated.";
-    	            }
-    	            
-    	            
+    	            return companyProfileRepository.save(companyProfile);
     	        } else {
     	            throw new Exception("JobRecruiter with ID " + jobRecruiterId + " not found.");
     	        }
