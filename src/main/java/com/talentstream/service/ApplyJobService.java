@@ -1,5 +1,6 @@
 package com.talentstream.service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -7,6 +8,8 @@ import java.util.Arrays;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+
+import com.talentstream.entity.Alerts;
 import com.talentstream.entity.Applicant;
 import com.talentstream.entity.ApplicantJobInterviewDTO;
 import com.talentstream.entity.ApplicantStatusHistory;
@@ -14,6 +17,8 @@ import com.talentstream.entity.AppliedApplicantInfo;
 import com.talentstream.entity.AppliedApplicantInfoDTO;
 import com.talentstream.entity.ApplyJob;
 import com.talentstream.entity.Job;
+import com.talentstream.entity.JobRecruiter;
+import com.talentstream.repository.AlertsRepository;
 import com.talentstream.repository.ApplicantStatusHistoryRepository;
 import com.talentstream.repository.ApplyJobRepository;
 import com.talentstream.repository.JobRepository;
@@ -38,6 +43,8 @@ public class ApplyJobService {
 	    
 	    @Autowired
 		private ApplicantStatusHistoryRepository statusHistoryRepository;
+	    @Autowired
+	    private AlertsRepository alertsRepository;
  
 	    public String ApplicantApplyJob(long  applicantId, long jobId) {
 	    	
@@ -49,24 +56,48 @@ public class ApplyJobService {
 	                throw new CustomException("Applicant ID or Job ID not found", HttpStatus.NOT_FOUND);
 	            }
 
-	            if (applyJobRepository.existsByApplicantAndJob(applicant, job)) {
-	            	return "Job has already been applied by the applicant";
-	            }
-
-	            ApplyJob applyJob = new ApplyJob();
-	            applyJob.setApplicant(applicant);
-	            applyJob.setJob(job);
-	            applyJobRepository.save(applyJob);
-	            saveStatusHistory(applyJob, applyJob.getApplicantStatus());
-	            return "Job Applied Successfully";
-	        } catch (CustomException ex) {
-	            throw ex; 
-	        } catch (Exception e) {
-	            throw new CustomException("An error occurred while applying for the job", HttpStatus.INTERNAL_SERVER_ERROR);
-	        }
-	    }
+	            else{
+	            	if (applyJobRepository.existsByApplicantAndJob(applicant, job)) {
+	                       	return "Job has already been applied by the applicant";
+	            	}else {
+	            		ApplyJob applyJob = new ApplyJob();
+	    	            applyJob.setApplicant(applicant);
+	    	            applyJob.setJob(job);
+	    	            applyJobRepository.save(applyJob);
+	    	            saveStatusHistory(applyJob, applyJob.getApplicantStatus());
+	    	            Job jobs=applyJob.getJob();
+	    	            if(jobs!=null) {
+	    	            	JobRecruiter recruiter=jobs.getJobRecruiter();
+	    	            	if(recruiter!=null) {
+	    	            		String companyName=recruiter.getCompanyname();
+	    	            		if(companyName!=null) {
+	    	            			String cN=recruiter.getCompanyname();
+	    	            			sendAlerts(applyJob,applyJob.getApplicantStatus(),cN);
+	    	            			return "Job applied successfully";
+	    	            		}
+	    	            	}
+	    	            }return "Company information not found for the given ApplyJob";
+	            		}
+	            	}
+	            }catch (CustomException ex) {
+	                    throw ex;
+	             } catch (Exception e) {
+	                    throw new CustomException("An error occurred while applying for the job: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+	             }
+	      }
+	            
 	    
-	    private void saveStatusHistory(ApplyJob applyJob, String applicationStatus) {
+	    private void sendAlerts(ApplyJob applyJob, String applicantStatus, String cN) {
+			// TODO Auto-generated method stub
+	    	Alerts alerts=new Alerts();
+			alerts.setApplyJob(applyJob);
+			alerts.setCompanyName(cN);
+			alerts.setStatus(applicantStatus);
+			alerts.setChangeDate(LocalDate.now());
+			alertsRepository.save(alerts);
+		}
+
+		private void saveStatusHistory(ApplyJob applyJob, String applicationStatus) {
 			// TODO Auto-generated method stub
 			ApplicantStatusHistory statusHistory=new ApplicantStatusHistory();
 			statusHistory.setApplyJob(applyJob);
@@ -136,11 +167,21 @@ private AppliedApplicantInfoDTO mapToDTO(AppliedApplicantInfo appliedApplicantIn
 public String updateApplicantStatus(Long applyJobId, String newStatus) {
     ApplyJob applyJob = applyJobRepository.findById(applyJobId)
             .orElseThrow(() -> new EntityNotFoundException("ApplyJob not found"));
- 
-    applyJob.setApplicantStatus(newStatus);
-    applyJobRepository.save(applyJob);
-    saveStatusHistory(applyJob, applyJob.getApplicantStatus());
-    return "Applicant status updated to: " + newStatus;
+    Job job=applyJob.getJob();
+    if(job!=null) {
+    	JobRecruiter recruiter=job.getJobRecruiter();
+    	if(recruiter!=null) {
+    		String companyName=recruiter.getCompanyname();
+    		if(companyName!=null) {
+    			applyJob.setApplicantStatus(newStatus);
+    		    applyJobRepository.save(applyJob);
+    		    saveStatusHistory(applyJob, applyJob.getApplicantStatus());
+    		    sendAlerts(applyJob,applyJob.getApplicantStatus(),companyName);
+    		    return "Applicant status updated to: " + newStatus;
+    		}
+    	}
+    }
+    return "Company information not found for the given ApplyJob";    
 }
  
 public List<ApplicantJobInterviewDTO> getApplicantJobInterviewInfoForRecruiterAndStatus(
@@ -180,6 +221,11 @@ public long countShortlistedAndInterviewedApplicants() {
 public List<ApplicantStatusHistory> getApplicantStatusHistory(long applyJobId) {
 	// TODO Auto-generated method stub
 	return statusHistoryRepository.findByApplyJob_ApplyJobIdOrderByChangeDateDesc(applyJobId);
+}
+
+public List<Alerts> getAlerts(long applyJobId) {
+	// TODO Auto-generated method stub
+	return alertsRepository.findByApplyJob_ApplyJobIdOrderByChangeDateDesc(applyJobId);
 }
 }
 
